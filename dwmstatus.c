@@ -14,10 +14,12 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <net/if.h>
 
 #include <X11/Xlib.h>
 
 char *tzargentina = "America/Buenos_Aires";
+char *tzla = "America/Los_Angeles";
 char *tzutc = "UTC";
 char *tzberlin = "Europe/Berlin";
 
@@ -158,10 +160,47 @@ getbattery(char *base)
 		status = '?';
 	}
 
+	free(co);
+
 	if (remcap < 0 || descap < 0)
 		return smprintf("invalid");
 
 	return smprintf("%.0f%%%c", ((float)remcap / (float)descap) * 100, status);
+}
+
+char *
+getnetwork(void) {
+	struct if_nameindex *if_array, *i;
+	char *co;
+	char *base;
+	int networkup;
+	char *networkname = NULL;
+
+	if_array = if_nameindex();
+
+	if (if_array == NULL) {
+		perror("if_nameindex");
+		exit(1);
+	}
+
+	for (i = if_array; !(i->if_index == 0 && i->if_name == NULL); ++i) {
+		// read corresponding network interface operstate
+		base = smprintf("/sys/class/net/%s", i->if_name);
+		co = readfile(base, "operstate");
+		free(base);
+		if (co == NULL) continue;
+		networkup = (strncmp(co, "up", 2) == 0);
+		free(co);
+		if (networkup) {
+			networkname = smprintf("%s", i->if_name);
+			break;
+		}
+	}
+	if_freenameindex(if_array);
+
+	if (!networkname) return smprintf("");
+
+	return networkname;
 }
 
 char *
@@ -172,6 +211,7 @@ gettemperature(char *base, char *sensor)
 	co = readfile(base, sensor);
 	if (co == NULL)
 		return smprintf("");
+	free(co);
 	return smprintf("%02.0f°C", atof(co) / 1000);
 }
 
@@ -179,13 +219,9 @@ int
 main(void)
 {
 	char *status;
-	char *avgs;
 	char *bat;
-	char *bat1;
-	char *tmar;
-	char *tmutc;
-	char *tmbln;
-	char *t0, *t1, *t2;
+	char *tmla;
+	char *network;
 
 	if (!(dpy = XOpenDisplay(NULL))) {
 		fprintf(stderr, "dwmstatus: cannot open display.\n");
@@ -193,30 +229,18 @@ main(void)
 	}
 
 	for (;;sleep(60)) {
-		avgs = loadavg();
 		bat = getbattery("/sys/class/power_supply/BAT0");
-		bat1 = getbattery("/sys/class/power_supply/BAT1");
-		tmar = mktimes("%H:%M", tzargentina);
-		tmutc = mktimes("%H:%M", tzutc);
-		tmbln = mktimes("KW %W %a %d %b %H:%M %Z %Y", tzberlin);
-		t0 = gettemperature("/sys/devices/virtual/hwmon/hwmon0", "temp1_input");
-		t1 = gettemperature("/sys/devices/virtual/hwmon/hwmon2", "temp1_input");
-		t2 = gettemperature("/sys/devices/virtual/hwmon/hwmon4", "temp1_input");
+		tmla = mktimes("%a %b %d %Y %H:%M %Z", tzla);
+		network = getnetwork();
 
-		status = smprintf("T:%s|%s|%s L:%s B:%s|%s A:%s U:%s %s",
-				t0, t1, t2, avgs, bat, bat1, tmar, tmutc,
-				tmbln);
+		status = smprintf("\U0001F578: %s \U0001F50B:%s \U0001F4C6: %s",
+			          network, bat, tmla);
+		//status = smprintf("Network:%s Battery:%s Calendar: %s", network, bat, tmla);
 		setstatus(status);
 
-		free(t0);
-		free(t1);
-		free(t2);
-		free(avgs);
 		free(bat);
-		free(bat1);
-		free(tmar);
-		free(tmutc);
-		free(tmbln);
+		free(tmla);
+		free(network);
 		free(status);
 	}
 
