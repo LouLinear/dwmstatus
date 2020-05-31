@@ -84,17 +84,6 @@ setstatus(char *str)
 }
 
 char *
-loadavg(void)
-{
-	double avgs[3];
-
-	if (getloadavg(avgs, 3) < 0)
-		return smprintf("");
-
-	return smprintf("%.2f %.2f %.2f", avgs[0], avgs[1], avgs[2]);
-}
-
-char *
 readfile(char *base, char *file)
 {
 	char *path, line[513];
@@ -201,18 +190,6 @@ getnetwork(void) {
 	if (!networkname) return smprintf("");
 
 	return networkname;
-}
-
-char *
-gettemperature(char *base, char *sensor)
-{
-	char *co;
-
-	co = readfile(base, sensor);
-	if (co == NULL)
-		return smprintf("");
-	free(co);
-	return smprintf("%02.0f°C", atof(co) / 1000);
 }
 
 int
