@@ -14,6 +14,8 @@
 #include <time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+
+// internet
 #include <net/if.h>
 
 #include <X11/Xlib.h>
@@ -210,7 +212,7 @@ main(void)
 		tmla = mktimes("%a %b %d %Y %H:%M %Z", tzla);
 		network = getnetwork();
 
-		status = smprintf("\U0001F578: %s \U0001F50B:%s \U0001F4C6: %s",
+		status = smprintf("\U0001F578%s \U0001F50B%s \U0001F4C6%s",
 			          network, bat, tmla);
 		//status = smprintf("Network:%s Battery:%s Calendar: %s", network, bat, tmla);
 		setstatus(status);
